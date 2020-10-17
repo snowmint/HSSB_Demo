@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>building</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<style>
+			body {
+				background-color: #ccc;
+				color: #000;
+			}
+
+			a {
+				color: #f00;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div id="info">
+			HSSB test
+		</div>
+		<script type="module">
+            import * as THREE from 'https://unpkg.com/three@0.120.1/build/three.module.js';
+            import { OrbitControls } from 'https://unpkg.com/three@0.120.1/examples/jsm/controls/OrbitControls.js';
+			import {OBJLoader} from 'https://unpkg.com/three@0.120.1/examples/jsm/loaders/OBJLoader.js';
+            import {MTLLoader} from 'https://unpkg.com/three@0.120.1/examples/jsm/loaders/MTLLoader.js';
+			import {GLTFLoader} from 'https://unpkg.com/three@0.120.1/examples/jsm/loaders/GLTFLoader.js';
+			import {DRACOLoader} from 'https://unpkg.com/three@0.120.1/examples/jsm/loaders/DRACOLoader.js';
+			import Stats from 'https://unpkg.com/three@0.120.1/examples/jsm/libs/stats.module';
+            var camera, controls, scene, renderer;
+
+			init();
+            
+            function loadCubemap() {
+                var path = "./skyHD/";
+                var format = ".png";
+                var urls = [
+                        path + 'posx' + format, path + 'negx' + format,
+                        path + 'posy' + format, path + 'negy' + format,
+                        path + 'posz' + format, path + 'negz' + format
+                    ];
+                var loadercube = new THREE.CubeTextureLoader();
+                loadercube.setCrossOrigin ('');
+                var cubeMap = loadercube.load(urls);
+                cubeMap.format = THREE.RGBFormat;
+                //console.log(cubeMap.image);
+                return cubeMap;
+            }
+
+			function init() {
+
+				scene = new THREE.Scene();
+                var cubeMap = loadCubemap();
+                scene.background = cubeMap;
+				
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				//renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.shadowMap.enabled = true;
+				renderer.shadowMap.type = THREE.PCFSoftShadowMap; // default THREE.PCFShadowMap
+				document.body.appendChild( renderer.domElement );
+
+                
+                camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+                camera.position.y = 40;
+                camera.position.z = 120;
+                scene.add(camera);
+
+                
+                controls = new OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+                controls.dampingFactor = 0.05;
+                controls.screenSpacePanning = false;
+                controls.minDistance = 10;
+                controls.maxDistance = 600;
+                controls.maxPolarAngle = (Math.PI-0.1) / 2;
+
+				// lights
+				var ambientLight = new THREE.AmbientLight( 0xcccccc );
+    			scene.add( ambientLight );
+				//
+				var spotLight = new THREE.SpotLight( 0xaaaaaa, 2, 5000 );
+				spotLight.position.set( 500, 500, 300 );
+				spotLight.castShadow = true;
+				scene.add( spotLight );
+				
+				spotLight.shadow.mapSize.width = 10000;
+				spotLight.shadow.mapSize.height = 10000;
+				spotLight.shadow.camera.near = 0.5;
+				spotLight.shadow.camera.far = 1500;
+				
+				var spotLightHelper = new THREE.SpotLightHelper( spotLight );
+				scene.add( spotLightHelper );
+                
+                window.addEventListener( 'resize', onWindowResize, false );
+
+                /////////////////////////////////////////////////////////////////////
+				//model
+				// Instantiate a loader
+				var loader = new GLTFLoader();
+				loader.load(
+					'./hssb_white_by_SnowmintWei/hssb_glb.glb',
+					function ( gltf ) {
+
+						scene.add( gltf.scene );
+						console.log(gltf);
+						gltf.scene.traverse( function( node ) {
+							if ( node.isMesh ) { node.castShadow = true; }
+						} );
+						gltf.animations; // Array<THREE.AnimationClip>
+						gltf.scene; // THREE.Group
+						gltf.scenes; // Array<THREE.Group>
+						gltf.cameras; // Array<THREE.Camera>
+						gltf.asset; // Object
+
+					},
+					// called while loading is progressing
+					function ( xhr ) {
+
+						console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+
+					},
+					// called when loading has errors
+					function ( error ) {
+
+						console.log( 'An error happened' );
+
+					}
+				);
+				//Occur all black problem -- I haven't figure out why it happened...
+//				const mtlLoader = new MTLLoader();
+//				mtlLoader.load('./hssb_white_by_SnowmintWei/obj.mtl',
+//					(materials) => {
+//						materials.preload();
+//						const objLoader = new OBJLoader();
+//						objLoader.setMaterials(materials);
+//						objLoader.load(
+//							'./hssb_white_by_SnowmintWei/hssb_white.obj',
+//							(object) => {
+//								object.children[0].castShadow = true; 
+//            					object.children[0].receiveShadow = true;
+//								object.castShadow = true; 
+//            					object.receiveShadow = true;
+//								object.rotation.x -= Math.PI/2;
+//								console.log(object);
+//								scene.add(object);
+//							},
+//							(xhr) => {
+//								console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+//							},
+//							(error) => {
+//								console.log('An error happened');
+//							}
+//						);
+//					},
+//					(xhr) => {
+//						console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+//					},
+//					(error) => {
+//						console.log('An error happened');
+//					}
+//				)
+				//////// add floor /////////////////////////////////////////////////
+                let map =  new THREE.TextureLoader().load("./floor_texture.jpg");
+                map.repeat.set(100, 100);
+                map.wrapS = THREE.RepeatWrapping;
+                map.wrapT = THREE.RepeatWrapping;
+				
+				var planeGeometry = new THREE.PlaneBufferGeometry( 10000, 10000, 32, 32 );
+				var planeMaterial = new THREE.MeshStandardMaterial( { color: 0xcccccc , side:THREE.DoubleSide, map:map} )
+				var sh_plane = new THREE.Mesh( planeGeometry, planeMaterial );
+				sh_plane.rotation.x = -Math.PI / 2;
+                sh_plane.position.y = 0;
+				sh_plane.receiveShadow = true;
+				scene.add( sh_plane );
+				
+				var helper = new THREE.CameraHelper( spotLight.shadow.camera );
+				scene.add( helper );
+			}
+			window.addEventListener('resize', onWindowResize, false)
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight
+				camera.updateProjectionMatrix()
+				renderer.setSize(window.innerWidth, window.innerHeight)
+				render()
+			}
+
+			const stats = Stats()
+			document.body.appendChild(stats.dom)
+
+			var animate = function () {
+				requestAnimationFrame(animate)
+				controls.update()
+				render()
+				stats.update()
+			};
+
+			function render() {
+				renderer.render(scene, camera)
+			}
+			animate();
+			
+		</script>
+	</body>
+</html>
